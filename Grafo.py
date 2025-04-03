@@ -29,19 +29,23 @@ class Grafo:
         self.V = V  # Conjunto de vértices.
         self.E = E  # Conjunto de arestas.
 
-    def sao_incidentes(self, v1: Vertice, v2: Vertice, e: Aresta) -> bool:
+    def sao_incidentes(self, v1: Vertice, v2: Vertice, e: Aresta, direcionado: bool = False) -> bool:
         """
         Verifica se dois vértices são incidentes numa aresta.
         """
-        return (v1 == e.orig and v2 == e.dest) or \
-            (v2 == e.orig and v1 == e.dest)
+        # No direcionado verifica apenas um caso.
+        if direcionado:
+            return v1.id == e.orig.id and v2.id == e.dest.id
+        # No não direcionado verifica os dois casos.
+        return (v1.id == e.orig.id and v2.id == e.dest.id) or \
+            (v2.id == e.orig.id and v1.id == e.dest.id)
 
-    def sao_vizinhos(self, v1: Vertice, v2: Vertice) -> bool:
+    def sao_vizinhos(self, v1: Vertice, v2: Vertice, direcionado: bool = False) -> bool:
         """
         Verifica se dois vértices são vizinhos (ou adjacentes).
         """
         for aresta in self.E:
-            if self.sao_incidentes(v1, v2, aresta):
+            if self.sao_incidentes(v1, v2, aresta, direcionado):
                 return True
         return False
 
@@ -52,10 +56,11 @@ class Grafo:
         grau: int = 0
         for aresta in self.E:
             if aresta.eh_direcionada:
-                if v == aresta.dest:
+                if v.id == aresta.dest.id:
                     grau += 1
             else:
-                if v in aresta.vertices:
+                v_ids: List[int] = [vertice.id for vertice in aresta.vertices]
+                if v.id in v_ids:
                     grau += 1
         return grau
 
@@ -115,3 +120,69 @@ class Grafo:
         """
         return self.eh_subgrafo(G) and \
             (len(G.V) != len(self.V) or len(G.E) != len(self.E))
+
+    def get_adj_list(self, v: Vertice) -> List[Vertice]:
+        """
+        Gera a lista de adjacência de um vértice.
+        """
+        adj_l: List[Vertice] = []
+        for aresta in self.E:
+            if aresta.orig.id == v.id:
+                adj_l.append(aresta.dest)
+            if aresta.dest.id == v.id:
+                adj_l.append(aresta.orig)
+        return adj_l
+
+    def get_adj_mtx(self) -> List[List[int]]:
+        """
+        Gera a matriz de adjacência do grafo.
+        """
+        # O +1 é para adicionar o cabeçalho.
+        adj_mtx: List[List[int]] = [] * (len(self.V) + 1)
+        v_ids: List[int] = sorted([vertice.id for vertice in self.V])  # Ids dos vértices do grafo.
+        adj_mtx.append([0] + v_ids)
+        for vertice_1 in self.V:
+            new_row: List[int] = []  # Nova linha que será adicionada à matriz de adjacência.
+            adj_l: List[Vertice] = self.get_adj_list(vertice_1)
+            adj_ids: List[int] = [vertice.id for vertice in adj_l]  # Ids dos vértices adjacentes.
+            for vertice_2 in self.V:
+                # Adiciona 1 caso o vértice seja adjacente, e 1 caso contrário.
+                new_row.append(int(vertice_2.id in adj_ids))
+        return adj_mtx
+
+    def eh_cadeia(self, V: List[Vertice]) -> bool:
+        """
+        Verifica se a lista V de vértices é uma cadeia (ou passeio).
+        """
+        if len(V) < 2:
+            return False
+        i = 0
+        while i < len(V) - 1:
+            v0: Vertice = V[i]
+            v1: Vertice = V[i+1]
+            if not self.sao_vizinhos(v0, v1):
+                return False
+            i += 1
+        return True
+
+    def eh_caminho(self, V: List[Vertice]) -> bool:
+        """
+        Determina se a lista V de vértices é um caminho.
+        """
+        if len(V) < 2:
+            return False
+        i = 0
+        while i < len(V) - 1:
+            v0: Vertice = V[i]
+            v1: Vertice = V[i+1]
+            if not self.sao_vizinhos(v0, v1, direcionado=True):
+                return False
+            i += 1
+        return True
+
+    def eh_ciclo(self, V: List[Vertice]) -> bool:
+        """
+        Determina se a lista V de vértices é um ciclo, ou seja,
+        um caminho onde o primeiro elemento é o último.
+        """
+        return self.eh_caminho(V) and V[0].id == V[-1].id
