@@ -22,9 +22,10 @@ class Grafo:
         if len(V) == 0:
             raise Exception('O Tamanho de V deve ser maior que 0.')
         # Verifica se em alguma aresta há um vértice que não está em V.
+        v_ids: List[int] = [v.id for v in V]
         for aresta in E:
             for vertice in aresta.vertices:
-                if vertice not in V:
+                if vertice.id not in v_ids:
                     raise Exception(f'O vértice {vertice} não está em V.')
         self.V = V  # Conjunto de vértices.
         self.E = E  # Conjunto de arestas.
@@ -127,9 +128,12 @@ class Grafo:
         """
         adj_l: List[Vertice] = []
         for aresta in self.E:
-            if aresta.orig.id == v.id:
+            adj_l_ids: List[int] = [adj.id for adj in adj_l]
+            if aresta.orig.id == v.id and \
+               aresta.dest.id not in adj_l_ids:
                 adj_l.append(aresta.dest)
-            if aresta.dest.id == v.id:
+            elif aresta.dest.id == v.id and \
+                 aresta.orig.id not in adj_l_ids:
                 adj_l.append(aresta.orig)
         return adj_l
 
@@ -138,16 +142,17 @@ class Grafo:
         Gera a matriz de adjacência do grafo.
         """
         # O +1 é para adicionar o cabeçalho.
-        adj_mtx: List[List[int]] = [] * (len(self.V) + 1)
+        adj_mtx: List[List[int]] = []
         v_ids: List[int] = sorted([vertice.id for vertice in self.V])  # Ids dos vértices do grafo.
         adj_mtx.append([0] + v_ids)
         for vertice_1 in self.V:
-            new_row: List[int] = []  # Nova linha que será adicionada à matriz de adjacência.
+            new_row: List[int] = [vertice_1.id]  # Nova linha que será adicionada à matriz de adjacência.
             adj_l: List[Vertice] = self.get_adj_list(vertice_1)
             adj_ids: List[int] = [vertice.id for vertice in adj_l]  # Ids dos vértices adjacentes.
             for vertice_2 in self.V:
                 # Adiciona 1 caso o vértice seja adjacente, e 1 caso contrário.
                 new_row.append(int(vertice_2.id in adj_ids))
+            adj_mtx.append(new_row)
         return adj_mtx
 
     def eh_cadeia(self, V: List[Vertice]) -> bool:
@@ -186,3 +191,34 @@ class Grafo:
         um caminho onde o primeiro elemento é o último.
         """
         return self.eh_caminho(V) and V[0].id == V[-1].id
+
+    def eh_conexo(self) -> bool:
+        """
+        Determina se o grafo é conexo, ou seja, cada vértice
+        pode ser alcançável a partir de qualquer vértice.
+        """
+        V: List[Vertice] = [self.V[0]]
+        i = 0
+        while i < len(V):
+            v_ids = [vertice.id for vertice in V]
+            vertice: Vertice = V[i]
+            adj_l: List[Vertice] = self.get_adj_list(vertice)
+            for adj in adj_l:
+                if adj.id not in v_ids:
+                    V.append(adj)
+            i += 1
+        return len(V) == len(self.V)
+
+    def eh_arvore(self) -> bool:
+        """
+        Determina se o grafo é uma árvore, ou seja, é conexo e tem
+        exatamente n-1 arestas, sendo n o número de vértices.
+        """
+        return self.eh_conexo() and len(self.E) == (len(self.V) - 1)
+
+    def eh_arvore_geradora(self, G: Grafo) -> bool:
+        """
+        Determina se o grafo G é uma árvore geradora, ou seja, é subgrafo de
+        deste grafo e é uma árvore.
+        """
+        return self.eh_subgrafo(G) and G.eh_arvore()
