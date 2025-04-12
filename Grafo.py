@@ -1,10 +1,22 @@
 from __future__ import annotations
-from typing import List, Set
+from typing import List, Dict, Set
 
 
 class Vertice:
-    def __init__(self, id: int):
+    def __init__(self, id: str):
         self.id = id
+
+    def __eq__(self, other: Vertice) -> bool:
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __str__(self) -> str:
+        return str(self.id)
+
+    def __repr__(self) -> str:
+        return str(self.id)
 
 
 class Aresta:
@@ -15,6 +27,26 @@ class Aresta:
         self.eh_direcionada: bool = eh_direcionada  # Indicador para caso a aresta seja direcionada.
         self.vertices: List[Vertice] = [orig, dest]  # Lista de vértices da aresta.
 
+    def __eq__(self, other: Aresta) -> bool:
+        """
+        Para se comparar duas arestas, caso ambas sejam direcionadas, o vértice de origem
+        deve ser o mesmo em ambas, e o de destino também, caso contrário, estas serão iguais
+        caso o caso acima seja satisfeito, ou se tiverem origem e destino trocados.
+        """
+        if self.weight != other.weight:
+            return False
+        if self.eh_direcionada and other.eh_direcionada:
+            return self.orig == other.orig and self.dest == other.dest
+        else:
+            return self.orig in other.vertices and \
+                self.dest in other.vertices
+
+    def __hash__(self):
+        return hash(f'{self.orig.id}-{self.dest.id}-{self.weight}')
+
+    def __str__(self) -> str:
+        return f'{self.orig.id}-{self.dest.id}-{self.weight}'
+
 
 class Grafo:
     def __init__(self, V: List[Vertice], E: List[Aresta]):
@@ -22,10 +54,9 @@ class Grafo:
         if len(V) == 0:
             raise Exception('O Tamanho de V deve ser maior que 0.')
         # Verifica se em alguma aresta há um vértice que não está em V.
-        v_ids: List[int] = [v.id for v in V]
         for aresta in E:
             for vertice in aresta.vertices:
-                if vertice.id not in v_ids:
+                if vertice not in V:
                     raise Exception(f'O vértice {vertice} não está em V.')
         self.V = V  # Conjunto de vértices.
         self.E = E  # Conjunto de arestas.
@@ -36,10 +67,9 @@ class Grafo:
         """
         # No direcionado verifica apenas um caso.
         if direcionado:
-            return v1.id == e.orig.id and v2.id == e.dest.id
+            return v1 == e.orig and v2 == e.dest
         # No não direcionado verifica os dois casos.
-        return (v1.id == e.orig.id and v2.id == e.dest.id) or \
-            (v2.id == e.orig.id and v1.id == e.dest.id)
+        return v1 in e.vertices and v2 in e.vertices
 
     def sao_vizinhos(self, v1: Vertice, v2: Vertice, direcionado: bool = False) -> bool:
         """
@@ -57,12 +87,10 @@ class Grafo:
         grau: int = 0
         for aresta in self.E:
             if aresta.eh_direcionada:
-                if v.id == aresta.dest.id:
+                if v == aresta.dest:
                     grau += 1
-            else:
-                v_ids: List[int] = [vertice.id for vertice in aresta.vertices]
-                if v.id in v_ids:
-                    grau += 1
+            elif v in aresta.vertices:
+                grau += 1
         return grau
 
     def eh_isolado(self, v: Vertice) -> bool:
@@ -128,30 +156,29 @@ class Grafo:
         """
         adj_l: List[Vertice] = []
         for aresta in self.E:
-            adj_l_ids: List[int] = [adj.id for adj in adj_l]
-            if aresta.orig.id == v.id and \
-               aresta.dest.id not in adj_l_ids:
-                adj_l.append(aresta.dest)
-            elif aresta.dest.id == v.id and \
-                 aresta.orig.id not in adj_l_ids:
-                adj_l.append(aresta.orig)
+            if aresta.eh_direcionada:
+                if aresta.orig == v and aresta.dest not in adj_l:
+                    adj_l.append(aresta.dest)
+            else:
+                if aresta.orig == v and aresta.dest not in adj_l:
+                    adj_l.append(aresta.dest)
+                elif aresta.dest == v and aresta.orig not in adj_l:
+                    adj_l.append(aresta.orig)
         return adj_l
 
     def get_adj_mtx(self) -> List[List[int]]:
         """
         Gera a matriz de adjacência do grafo.
         """
-        # O +1 é para adicionar o cabeçalho.
         adj_mtx: List[List[int]] = []
-        v_ids: List[int] = sorted([vertice.id for vertice in self.V])  # Ids dos vértices do grafo.
-        adj_mtx.append([0] + v_ids)
+        v_ids: List[str] = sorted([vertice.id for vertice in self.V])  # Ids dos vértices do grafo.
+        adj_mtx.append([0] + v_ids)  # Define a primeira linha de cabeçalho.
         for vertice_1 in self.V:
             new_row: List[int] = [vertice_1.id]  # Nova linha que será adicionada à matriz de adjacência.
             adj_l: List[Vertice] = self.get_adj_list(vertice_1)
-            adj_ids: List[int] = [vertice.id for vertice in adj_l]  # Ids dos vértices adjacentes.
             for vertice_2 in self.V:
-                # Adiciona 1 caso o vértice seja adjacente, e 1 caso contrário.
-                new_row.append(int(vertice_2.id in adj_ids))
+                # Adiciona 1 caso o vértice seja adjacente, e 0 caso contrário.
+                new_row.append(int(vertice_2 in adj_l))
             adj_mtx.append(new_row)
         return adj_mtx
 
@@ -164,7 +191,7 @@ class Grafo:
         i = 0
         while i < len(V) - 1:
             v0: Vertice = V[i]
-            v1: Vertice = V[i+1]
+            v1: Vertice = V[i + 1]
             if not self.sao_vizinhos(v0, v1):
                 return False
             i += 1
@@ -179,18 +206,21 @@ class Grafo:
         i = 0
         while i < len(V) - 1:
             v0: Vertice = V[i]
-            v1: Vertice = V[i+1]
+            v1: Vertice = V[i + 1]
             if not self.sao_vizinhos(v0, v1, direcionado=True):
                 return False
             i += 1
         return True
 
-    def eh_ciclo(self, V: List[Vertice]) -> bool:
+    def eh_ciclo(self, V: List[Vertice] | List[Aresta]) -> bool:
         """
         Determina se a lista V de vértices é um ciclo, ou seja,
         um caminho onde o primeiro elemento é o último.
         """
-        return self.eh_caminho(V) and V[0].id == V[-1].id
+        # Ajusta a lista para caso arestas tenham sido passadas.
+        if isinstance(V[0], Aresta):
+            V = [V[0].orig] + [e.dest for e in V]
+        return self.eh_caminho(V) and V[0] == V[-1]
 
     def eh_conexo(self) -> bool:
         """
@@ -200,11 +230,10 @@ class Grafo:
         V: List[Vertice] = [self.V[0]]
         i = 0
         while i < len(V):
-            v_ids = [vertice.id for vertice in V]
             vertice: Vertice = V[i]
             adj_l: List[Vertice] = self.get_adj_list(vertice)
             for adj in adj_l:
-                if adj.id not in v_ids:
+                if adj not in V:
                     V.append(adj)
             i += 1
         return len(V) == len(self.V)
@@ -222,3 +251,62 @@ class Grafo:
         deste grafo e é uma árvore.
         """
         return self.eh_subgrafo(G) and G.eh_arvore()
+
+    def alg_kruskal(self) -> Grafo:
+        """
+        Implementação do algoritmo de kruskal, que retorna uma
+        árvore geradora do grafo.
+        """
+        E: List[Aresta] = sorted(self.E, key=lambda e: e.weight)
+        V_AG: List[Vertice] = [E[0].orig]
+        E_AG: List[Aresta] = [E[0]]
+        for aresta in E:
+            vertice = aresta.dest
+            if not self.eh_ciclo(V_AG + [vertice]):
+                V_AG.append(vertice)
+                E_AG.append(aresta)
+
+        [print(v.id) for v in V_AG]
+        print()
+        [print(e.orig.id, e.dest.id) for e in E_AG]
+        # return Grafo(V_AG, E_AG)
+
+    def get_aresta(self, orig: Vertice, dest: Vertice) -> Aresta| None:
+        """
+        Procura uma aresta que tenha a mesma origem e desitno.
+        """
+        for aresta in self.E:
+            if self.sao_incidentes(orig, dest, aresta):
+                return aresta
+        return None
+
+    def dijkstra(self, A: Vertice, B: Vertice) -> List[Vertice]:
+        N: List[Vertice] = [A]
+        D: Dict[Vertice, float] = {}
+        for v in self.V:
+            if self.sao_vizinhos(A, v):
+                e: Aresta = self.get_aresta(A, v)
+                D[v] = e.weight
+            else:
+                D[v] = float('inf')
+        while len(N) != len(self.V):
+            # Lista os vértices ainda não inseridos em N.
+            nao_inseridos = [v for v in D if v not in N]
+            # Ordena os vértices com base em D(v).
+            nao_inseridos = sorted(nao_inseridos, key=lambda x: D[x])
+            w: Vertice = nao_inseridos[0]
+            N.append(w)
+            # Lista os vizinhos de w.
+            vertices = self.get_adj_list(w)
+            # Remove os que já estão em n.
+            vertices = [v for v in vertices if v not in N]
+            # Atualiza os valores de D.
+            for v in vertices:
+                aresta = self.get_aresta(w, v)
+                if aresta is None:
+                    c: float = float('inf')
+                else:
+                    c: float = aresta.weight
+                D[v] = min(D[v], D[w]+c)
+        return N
+
