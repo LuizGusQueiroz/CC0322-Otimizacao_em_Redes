@@ -69,7 +69,7 @@ class Grafo:
         if direcionado:
             return v1 == e.orig and v2 == e.dest
         # No não direcionado verifica os dois casos.
-        return v1 in e.vertices and v2 in e.vertices
+        return [v1, v2] == e.vertices or [v2, v1] == e.vertices
 
     def sao_vizinhos(self, v1: Vertice, v2: Vertice, direcionado: bool = False) -> bool:
         """
@@ -280,20 +280,24 @@ class Grafo:
                 return aresta
         return None
 
-    def dijkstra(self, A: Vertice, B: Vertice) -> List[Vertice]:
-        N: List[Vertice] = [A]
-        D: Dict[Vertice, float] = {}
+    def dijkstra(self, A: Vertice, B: Vertice) -> float:
+        N: List[Vertice] = [A]  # Nós visitados.
+        D: Dict[Vertice, float] = {}  # Custo de A até o nó v.
+        # Inicializa o pesos dos vizinhos de A com o peso deles, e os demais com infinito.
         for v in self.V:
             if self.sao_vizinhos(A, v):
                 e: Aresta = self.get_aresta(A, v)
                 D[v] = e.weight
             else:
                 D[v] = float('inf')
+        # Define o custo até A como 0.
+        D[A] = 0
         while len(N) != len(self.V):
             # Lista os vértices ainda não inseridos em N.
             nao_inseridos = [v for v in D if v not in N]
             # Ordena os vértices com base em D(v).
             nao_inseridos = sorted(nao_inseridos, key=lambda x: D[x])
+            # Seleciona o com menor custo.
             w: Vertice = nao_inseridos[0]
             N.append(w)
             # Lista os vizinhos de w.
@@ -303,10 +307,7 @@ class Grafo:
             # Atualiza os valores de D.
             for v in vertices:
                 aresta = self.get_aresta(w, v)
-                if aresta is None:
-                    c: float = float('inf')
-                else:
-                    c: float = aresta.weight
+                c: float = aresta.weight
                 D[v] = min(D[v], D[w]+c)
-        return N
+        return D[B]
 
