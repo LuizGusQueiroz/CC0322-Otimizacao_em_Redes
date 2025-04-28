@@ -47,6 +47,9 @@ class Aresta:
     def __str__(self) -> str:
         return f'{self.orig.id}-{self.dest.id}-{self.weight}'
 
+    def __repr__(self) -> str:
+        return f'{self.orig.id}-{self.dest.id}-{self.weight}'
+
 
 class Grafo:
     def __init__(self, V: List[Vertice], E: List[Aresta]):
@@ -271,16 +274,23 @@ class Grafo:
         [print(e.orig.id, e.dest.id) for e in E_AG]
         # return Grafo(V_AG, E_AG)
 
-    def get_aresta(self, orig: Vertice, dest: Vertice) -> Aresta| None:
+    def get_aresta(self, orig: Vertice, dest: Vertice, direcionado: bool = False) -> Aresta| None:
         """
         Procura uma aresta que tenha a mesma origem e desitno.
         """
         for aresta in self.E:
-            if self.sao_incidentes(orig, dest, aresta):
+            if self.sao_incidentes(orig, dest, aresta, direcionado):
                 return aresta
         return None
 
     def dijkstra(self, A: Vertice, B: Vertice) -> float:
+        """
+        Implementação do algoritmo de Dijkstra, retornando o custo de menor caminho do
+        vértice A, ao vértice B.
+        :param A: Vértice de origem.
+        :param B: Vértice de destino.
+        :return: Custo do menor de caminho de A até B.
+        """
         N: List[Vertice] = [A]  # Nós visitados.
         D: Dict[Vertice, float] = {}  # Custo de A até o nó v.
         # Inicializa o pesos dos vizinhos de A com o peso deles, e os demais com infinito.
@@ -311,3 +321,29 @@ class Grafo:
                 D[v] = min(D[v], D[w]+c)
         return D[B]
 
+    def floyd_warshall(self) -> Dict[Vertice, Dict[Vertice, float]]:
+        """
+        Implementação do algoritmo de Floyd Warshall.
+        :return: Matriz com a menor distâcia entre cada vértice.
+        """
+        C = {v: {} for v in self.V}
+        # Inicializa os pesos.
+        for orig in self.V:
+            for dest in self.V:
+                # Trata autocaminhos.
+                if orig == dest:
+                    C[orig][dest] = 0
+                    continue
+                # Verifica se há o caminho de orig para dest.
+                e: Aresta = self.get_aresta(orig, dest, direcionado=True)
+                # Se e for Nulo, o caminho não existe.
+                if e is None:
+                    C[orig][dest] = float('inf')
+                else:
+                    C[orig][dest] = e.weight
+        # Atualiza os pesos.
+        for vk in self.V:
+            for vi in self.V:
+                for vj in self.V:
+                    C[vi][vj] = min(C[vi][vj], C[vi][vk] + C[vk][vj])
+        return C
