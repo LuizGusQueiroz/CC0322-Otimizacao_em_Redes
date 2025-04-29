@@ -283,6 +283,21 @@ class Grafo:
                 return aresta
         return None
 
+    def get_arestas(self, v: Vertice, direcionado: bool = False) -> List[Aresta]:
+        """
+        Retorna todas as arestas que partem de um vértice.
+        """
+        edges: List[Aresta] = []
+        if direcionado:
+            for e in self.E:
+                if v == e.orig:
+                    edges.append(e)
+        else:
+            for e in self.E:
+                if v in e.vertices:
+                    edges.append(e)
+        return edges
+
     def dijkstra(self, A: Vertice, B: Vertice) -> float:
         """
         Implementação do algoritmo de Dijkstra, retornando o custo de menor caminho do
@@ -321,7 +336,7 @@ class Grafo:
                 D[v] = min(D[v], D[w]+c)
         return D[B]
 
-    def floyd_warshall(self) -> Dict[Vertice, Dict[Vertice, float]]:
+    def floyd_warshall(self, direcionado: bool = True) -> Dict[Vertice, Dict[Vertice, float]]:
         """
         Implementação do algoritmo de Floyd Warshall.
         :return: Matriz com a menor distâcia entre cada vértice.
@@ -335,7 +350,7 @@ class Grafo:
                     C[orig][dest] = 0
                     continue
                 # Verifica se há o caminho de orig para dest.
-                e: Aresta = self.get_aresta(orig, dest, direcionado=True)
+                e: Aresta = self.get_aresta(orig, dest, direcionado)
                 # Se e for Nulo, o caminho não existe.
                 if e is None:
                     C[orig][dest] = float('inf')
@@ -347,3 +362,25 @@ class Grafo:
                 for vj in self.V:
                     C[vi][vj] = min(C[vi][vj], C[vi][vk] + C[vk][vj])
         return C
+
+
+    def prim(self) -> Grafo:
+        v: Vertice = self.V[0]  # Nó atual.
+        V_vis: List[Vertice] = [v]  # Vértices visitados.
+        E_vis: List[Aresta] = self.get_arestas(v)  # Arestas visitadas.
+        E: List[Aresta] = []  # Arestas da AGM.
+        while len(V_vis) != len(self.V):
+            # Ordena as arestas com base no menor peso.
+            E_vis = sorted(E_vis, key=lambda e: e.weight, reverse=True)
+            while len(E_vis) != 0:
+                e: Aresta = E_vis[0]
+                E_vis = E_vis[1:]  # Descarta a aresta nova.
+                # Verifica se a aresta adiciona um nó já pertencente à AGM.
+                v = e.dest
+                if v not in V_vis:
+                    break
+            V_vis.append(v)
+            E_vis.extend(self.get_arestas(v))
+            E.append(e)
+        G = Grafo(V_vis, E)
+        return G
