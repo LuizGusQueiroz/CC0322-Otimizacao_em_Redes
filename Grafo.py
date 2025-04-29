@@ -255,24 +255,40 @@ class Grafo:
         """
         return self.eh_subgrafo(G) and G.eh_arvore()
 
-    def alg_kruskal(self) -> Grafo:
+    def kruskal(self) -> Grafo:
         """
         Implementação do algoritmo de kruskal, que retorna uma
         árvore geradora do grafo.
         """
-        E: List[Aresta] = sorted(self.E, key=lambda e: e.weight)
-        V_AG: List[Vertice] = [E[0].orig]
-        E_AG: List[Aresta] = [E[0]]
-        for aresta in E:
-            vertice = aresta.dest
-            if not self.eh_ciclo(V_AG + [vertice]):
-                V_AG.append(vertice)
-                E_AG.append(aresta)
+        pai: Dict[Vertice, Vertice] = {}
 
-        [print(v.id) for v in V_AG]
-        print()
-        [print(e.orig.id, e.dest.id) for e in E_AG]
-        # return Grafo(V_AG, E_AG)
+        def find(v: Vertice) -> Vertice:
+            if pai[v] != v:
+                pai[v] = find(pai[v])
+            return pai[v]
+
+        def union(u: Vertice, v: Vertice) -> bool:
+            ru, rv = find(u), find(v)
+            if ru != rv:
+                pai[rv] = ru
+                return True
+            return False
+        # Inicializa cada um como próprio pai.
+        for v in self.V:
+            pai[v] = v
+        E: List[Aresta] = sorted(self.E, key=lambda e: e.weight)
+        E_AG: List[Aresta] = []
+        V_AG = set()
+
+        for e in E:
+            if union(e.orig, e.dest):
+                E_AG.append(e)
+                V_AG.add(e.orig)
+                V_AG.add(e.dest)
+            if len(E_AG) == len(self.V) - 1:
+                break
+
+        return Grafo(list(V_AG), E_AG)
 
     def get_aresta(self, orig: Vertice, dest: Vertice, direcionado: bool = False) -> Aresta| None:
         """
@@ -373,12 +389,17 @@ class Grafo:
             # Ordena as arestas com base no menor peso.
             E_vis = sorted(E_vis, key=lambda e: e.weight, reverse=True)
             while len(E_vis) != 0:
-                e: Aresta = E_vis[0]
-                E_vis = E_vis[1:]  # Descarta a aresta nova.
-                # Verifica se a aresta adiciona um nó já pertencente à AGM.
-                v = e.dest
-                if v not in V_vis:
+                e: Aresta = E_vis.pop()  # Descarta a aresta nova.
+                # Verifica se exatamente um vértice já foi visitado.
+                u, w = e.orig, e.dest
+                if u in V_vis and w not in V_vis:
+                    v = w
                     break
+                elif w in V_vis and u not in V_vis:
+                    v = u
+                    break
+            else:
+                raise Exception('Grafo não conexo')
             V_vis.append(v)
             E_vis.extend(self.get_arestas(v))
             E.append(e)
