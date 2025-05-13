@@ -42,13 +42,13 @@ class Aresta:
                 self.dest in other.vertices
 
     def __hash__(self):
-        return hash(f'{self.orig.id}-{self.dest.id}-{self.weight}')
+        return hash(f'{self.orig.id}->{self.dest.id}:{self.weight}')
 
     def __str__(self) -> str:
-        return f'{self.orig.id}-{self.dest.id}-{self.weight}'
+        return f'{self.orig.id}->{self.dest.id}:{self.weight}'
 
     def __repr__(self) -> str:
-        return f'{self.orig.id}-{self.dest.id}-{self.weight}'
+        return f'{self.orig.id}->{self.dest.id}:{self.weight}'
 
 
 class Grafo:
@@ -379,17 +379,17 @@ class Grafo:
                     C[vi][vj] = min(C[vi][vj], C[vi][vk] + C[vk][vj])
         return C
 
-
     def prim(self) -> Grafo:
         v: Vertice = self.V[0]  # Nó atual.
-        V_vis: List[Vertice] = [v]  # Vértices visitados.
+        V_vis: Set[Vertice] = {v}  # Vértices visitados.
         E_vis: List[Aresta] = self.get_arestas(v)  # Arestas visitadas.
         E: List[Aresta] = []  # Arestas da AGM.
+
         while len(V_vis) != len(self.V):
-            # Ordena as arestas com base no menor peso.
+            # Ordena as arestas pelo menor peso.
             E_vis = sorted(E_vis, key=lambda e: e.weight, reverse=True)
-            while len(E_vis) != 0:
-                e: Aresta = E_vis.pop()  # Descarta a aresta nova.
+            while E_vis:
+                e: Aresta = E_vis.pop() # Descarta a aresta nova.
                 # Verifica se exatamente um vértice já foi visitado.
                 u, w = e.orig, e.dest
                 if u in V_vis and w not in V_vis:
@@ -400,8 +400,13 @@ class Grafo:
                     break
             else:
                 raise Exception('Grafo não conexo')
-            V_vis.append(v)
-            E_vis.extend(self.get_arestas(v))
+
+            V_vis.add(v)
+            for aresta in self.get_arestas(v):
+                if aresta.dest not in V_vis or aresta.orig not in V_vis:
+                    E_vis.append(aresta)
             E.append(e)
-        G = Grafo(V_vis, E)
+
+        G = Grafo(list(V_vis), E)
         return G
+
